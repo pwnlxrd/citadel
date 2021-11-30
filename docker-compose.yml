@@ -1,0 +1,429 @@
+version: '3.6'
+
+networks:
+  monitor-net:
+    driver: bridge
+  gitea:
+    external: false
+
+# volumes:
+#     prometheus_data: {}
+#     grafana_data: {}
+
+services:
+
+# step-ca
+
+  step-ca:
+    container_name: step-ca
+    image: smallstep/step-ca
+    restart: unless-stopped
+    volumes:
+      - /data/containers_data/step-ca:/home/step
+    networks:
+      - monitor-net
+    ports:
+      - "9000:9000"
+    dns:
+      - 192.168.0.125
+
+# traefik
+  traefik:
+    image: "traefik:latest"
+    container_name: "traefik"
+    environment:
+      LEGO_CA_CERTIFICATES: "/usr/local/share/ca-certificates/pwn-ca-bundle.pem"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - monitor-net
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/usr/local/share/ca-certificates/pwn-ca-bundle.pem:/usr/local/share/ca-certificates/pwn-ca-bundle.pem:ro"
+      - "/data/containers_data/traefik/configs/traefik.yml:/traefik.yml:ro"
+      - "/data/containers_data/traefik/certs:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.pwn.dev`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.tls.certresolver=pwn-ca"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:${traefik_pass}"
+      - "traefik.http.routers.traefik.middlewares=traefik-auth"
+    depends_on:
+      - "step-ca"
+
+  whoami:
+    image: "traefik/whoami"
+    container_name: "simple-service"
+    networks:
+      - monitor-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.pwn.dev`)"
+      - "traefik.http.routers.whoami.entrypoints=websecure"
+      - "traefik.http.routers.whoami.tls.certresolver=pwn-ca"
+      - "traefik.http.services.whoami-service.loadbalancer.server.port=80"
+      #- "traefik.http.routers.whoami.middlewares=traefik-compress"
+
+
+# monitorings service
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - /data/containers_data/prometheus/etc:/etc/prometheus
+      - /data/containers_data/prometheus/data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    ports:
+      - 9090:9090
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  blackbox:
+    container_name: blackbox
+    image: prom/blackbox-exporter
+    #ports:
+    # - 9115:9115
+    networks:
+      - monitor-net
+    volumes:
+      - /data/containers_data/prometheus/etc/blackbox:/etc/blackboxexporter
+    command:
+      - '--config.file=/etc/blackboxexporter/config.yml'
+      - '--log.level=debug'
+    restart: always
+    labels:
+      org.label-schema.group: "monitoring"
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - /data/containers_data/alertmanager/etc:/etc/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    ports:
+      - 9093:9093
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  nodeexporter:
+    image: prom/node-exporter:latest
+    container_name: nodeexporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    ports:
+      - 9100:9100
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      #- /cgroup:/cgroup:ro #doesn't work on MacOS only for Linux
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+# Grafana
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - /data/containers_data/grafana/data:/var/lib/grafana
+      - /data/containers_data/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - /data/containers_data/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+    environment:
+      - GF_SECURITY_ADMIN_USER=${ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    restart: unless-stopped
+    # ports:
+    #   - 3011:3000
+    networks:
+      - monitor-net
+    # labels:
+    #   org.label-schema.group: "monitoring"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.pwn.dev`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=pwn-ca"
+      - "traefik.http.services.grafana-service.loadbalancer.server.port=3000"
+
+  pushgateway:
+    image: prom/pushgateway:v1.4.1
+    container_name: pushgateway
+    restart: unless-stopped
+    ports:
+      - 9091:9091
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+# gitea and db
+
+  gitea-db: 
+    container_name: postresqlG
+    image: postgres:13.5-bullseye
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=gitea-admin-db
+      - POSTGRES_PASSWORD=${gitea_db_pass}
+      - POSTGRES_DB=gitea-db
+    networks:
+      - monitor-net
+    volumes:
+      - /data/containers_data/gitea/gitea_data_db:/var/lib/postgresql/data
+
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - DB_TYPE=postgres
+      - DB_HOST=gitea-db:5432
+      - DB_NAME=gitea-db
+      - DB_USER=gitea-admin-db
+      - DB_PASSWD=${gitea_db_pass}
+    restart: unless-stopped
+    networks:
+      - monitor-net
+    volumes:
+      - /data/containers_data/gitea/gitea_data:/data/gitea
+      - /data/containers_data/gitea/gitea_repo:/data/git
+      - /data/containers_data/gitea/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "223:22"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitea.rule=Host(`git.pwn.dev`)"
+      - "traefik.http.routers.gitea.entrypoints=websecure"
+      - "traefik.http.routers.gitea.tls.certresolver=pwn-ca"
+      - "traefik.http.services.gitea-service.loadbalancer.server.port=3000"
+    depends_on:
+      - gitea-db
+
+#heimdall
+
+  heimdall:
+    image: linuxserver/heimdall:latest
+    container_name: heimdall
+    restart: unless-stopped
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /data/containers_data/heimdall/config:/config
+    networks:
+      - monitor-net
+    environment:
+      - PGID=1000
+      - PUID=1000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.heimdall.rule=Host(`welcome.pwn.dev`)"
+      - "traefik.http.routers.heimdall.entrypoints=websecure"
+      - "traefik.http.routers.heimdall.tls.certresolver=pwn-ca"
+      - "traefik.http.services.heimdall-service.loadbalancer.server.port=80"
+
+#searx and filter
+
+  filtron:
+    container_name: filtron
+    image: dalf/filtron
+    restart: always
+    #ports:
+    #  - "127.0.0.1:4040:4040"
+    #  - "127.0.0.1:4041:4041"
+    networks:
+      - monitor-net
+    command: -listen 0.0.0.0:4040 -api 0.0.0.0:4041 -target searx:8080
+    volumes:
+      - /data/containers_data/searx/rules.json:/etc/filtron/rules.json:rw
+    read_only: true
+    cap_drop:
+      - ALL
+
+  searx:
+    container_name: searx
+    image: searx/searx:latest
+    restart: always
+    networks:
+      - monitor-net
+    command: -f
+    volumes:
+      - /data/containers_data/searx/configs:/etc/searx:rw
+    environment:
+      - BIND_ADDRESS=0.0.0.0:8080
+      - BASE_URL=https://searx.pwn.dev/
+      - MORTY_URL=https://searx.pwn.dev/morty/
+      - MORTY_KEY=${morty_key_secret}
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+      - DAC_OVERRIDE
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.searx.rule=Host(`searx.pwn.dev`)"
+      - "traefik.http.routers.searx.entrypoints=websecure"
+      - "traefik.http.routers.searx.tls.certresolver=pwn-ca"
+      - "traefik.http.services.searx-service.loadbalancer.server.port=8080"
+
+  morty:
+    container_name: morty
+    image: dalf/morty
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - monitor-net
+    command: -timeout 6 -ipv6
+    environment:
+      - MORTY_KEY=${morty_key_secret}
+      - MORTY_ADDRESS=0.0.0.0:3000
+    #logging:
+    #  driver: none
+    read_only: true
+    cap_drop:
+      - ALL
+
+#main dev-server
+
+  dev-server-main:
+    container_name: dev-server-main
+    image: dev-server:x86
+    network_mode: bridge
+    volumes:
+      - "/home/pwnlxrd/.ssh/authorized_keys:/home/user/.ssh/authorized_keys:ro"
+      - /data/share:/data
+    ports:
+      - "7001:22"
+      - "8000:8000"
+    restart: unless-stopped
+
+# #matrix
+
+#   synapse:
+#       image: "matrixdotorg/synapse:latest"
+#       container_name: "synapse"
+#       volumes:
+#           - "/data/containers_data/matrix/data:/data"
+#       environment:
+#           VIRTUAL_HOST: "matrix.pwn.dev"
+#           VIRTUAL_PORT: 8008
+#           #LETSENCRYPT_HOST: "sub.domain.com"
+#           SYNAPSE_SERVER_NAME: "matrix.pwn.dev"
+#           SYNAPSE_REPORT_STATS: "yes"
+#       networks:
+#         - monitor-net
+#       labels:
+#         - "traefik.enable=true"
+#         - "traefik.http.routers.synapse.rule=Host(`matrix.pwn.dev`)"
+#         - "traefik.http.routers.synapse.entrypoints=websecure"
+#         - "traefik.http.routers.synapse.tls.certresolver=pwn-ca"
+#         - "traefik.http.services.synapse-service.loadbalancer.server.port=8008"
+
+# #element-web
+
+#   element-web:
+#       container_name: element-web
+#       image: "element-web:x86"
+#       restart: unless-stopped
+#       networks:
+#         - monitor-net
+#       labels:
+#         - "traefik.enable=true"
+#         - "traefik.http.routers.element-web.rule=Host(`element.pwn.dev`)"
+#         - "traefik.http.routers.element-web.entrypoints=websecure"
+#         - "traefik.http.routers.element-web.tls.certresolver=pwn-ca"
+#         - "traefik.http.services.element-web-service.loadbalancer.server.port=80"
+
+# #Samba
+#   samba:
+#     image: dperson/samba
+#     environment:
+#       TZ: 'Europe/Moscow'
+#     networks:
+#       - default
+#     ports:
+#       - "137:137/udp"
+#       - "138:138/udp"
+#       - "139:139/tcp"
+#       - "445:445/tcp"
+#     read_only: false
+#     tmpfs:
+#       - /tmp
+#     restart: unless-stopped
+#     stdin_open: true
+#     tty: true
+#     volumes:
+#       - /data/share:/mnt
+#         #- /mnt2:/mnt2:z
+#     command: '-s "Vault;/mnt;yes;no;no;pwnlxrd" -u "pwnlxrd;${nfs_pass}" -p'
+
+#wikijs
+
+  # wikijs:
+  #   image: ghcr.io/linuxserver/wikijs
+  #   container_name: wikijs
+  #   environment:
+  #     - PUID=1000
+  #     - PGID=1000
+  #     - TZ=Europe/Moscow
+  #   networks:
+  #     - monitor-net
+  #   volumes:
+  #     - /data/containers_data/wikijs/config:/config
+  #     - /data/containers_data/wikijs/data:/data
+  #   restart: unless-stopped
+  #   labels:
+  #     - "traefik.enable=true"
+  #     - "traefik.http.routers.wikijs.rule=Host(`todo.pwn.dev`)"
+  #     - "traefik.http.routers.wikijs.entrypoints=websecure"
+  #     - "traefik.http.routers.wikijs.tls.certresolver=pwn-ca"
+  #     - "traefik.http.services.wikijs-service.loadbalancer.server.port=3000"
