@@ -51,24 +51,10 @@ services:
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.tls.certresolver=pwn-ca"
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=admin:${traefik_pass}"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users=pwnlxrd:${traefik_pass}"
       - "traefik.http.routers.traefik.middlewares=traefik-auth"
     depends_on:
       - "step-ca"
-
-  whoami:
-    image: "traefik/whoami"
-    container_name: "simple-service"
-    networks:
-      - monitor-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.pwn.dev`)"
-      - "traefik.http.routers.whoami.entrypoints=websecure"
-      - "traefik.http.routers.whoami.tls.certresolver=pwn-ca"
-      - "traefik.http.services.whoami-service.loadbalancer.server.port=80"
-      #- "traefik.http.routers.whoami.middlewares=traefik-compress"
-
 
 # monitorings service
 
@@ -346,84 +332,173 @@ services:
       - "8000:8000"
     restart: unless-stopped
 
-# #matrix
+#mail service
+  # External dependencies
+  redis-mail:
+    image: redis:alpine
+    restart: always
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/redis:/data"
+    
+  # Core services
+  front:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}nginx:${MAILU_VERSION:-1.8}
+    restart: always
+    env_file: .env
+    logging:
+      driver: json-file
+    ports:
+      - "127.0.0.1:80:80"
+      - "::1:80:80"
+      - "127.0.0.1:443:443"
+      - "::1:443:443"
+      - "127.0.0.1:25:25"
+      - "::1:25:25"
+      - "127.0.0.1:465:465"
+      - "::1:465:465"
+      - "127.0.0.1:587:587"
+      - "::1:587:587"
+      - "127.0.0.1:110:110"
+      - "::1:110:110"
+      - "127.0.0.1:995:995"
+      - "::1:995:995"
+      - "127.0.0.1:143:143"
+      - "::1:143:143"
+      - "127.0.0.1:993:993"
+      - "::1:993:993"
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/certs:/certs"
+      - "/data/containers_data/mailu/overrides/nginx:/overrides:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gitea.rule=Host(`mail.pwn.dev`)"
+      - "traefik.http.routers.gitea.entrypoints=websecure"
+      - "traefik.http.routers.gitea.tls.certresolver=pwn-ca"
+      - "traefik.http.services.gitea-service.loadbalancer.server.port=443"
 
-#   synapse:
-#       image: "matrixdotorg/synapse:latest"
-#       container_name: "synapse"
-#       volumes:
-#           - "/data/containers_data/matrix/data:/data"
-#       environment:
-#           VIRTUAL_HOST: "matrix.pwn.dev"
-#           VIRTUAL_PORT: 8008
-#           #LETSENCRYPT_HOST: "sub.domain.com"
-#           SYNAPSE_SERVER_NAME: "matrix.pwn.dev"
-#           SYNAPSE_REPORT_STATS: "yes"
-#       networks:
-#         - monitor-net
-#       labels:
-#         - "traefik.enable=true"
-#         - "traefik.http.routers.synapse.rule=Host(`matrix.pwn.dev`)"
-#         - "traefik.http.routers.synapse.entrypoints=websecure"
-#         - "traefik.http.routers.synapse.tls.certresolver=pwn-ca"
-#         - "traefik.http.services.synapse-service.loadbalancer.server.port=8008"
 
-# #element-web
+  admin:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}admin:${MAILU_VERSION:-1.8}
+    restart: always
+    env_file: .env
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/data:/data"
+      - "/data/containers_data/mailu/dkim:/dkim"
+    depends_on:
+      - redis-mail
 
-#   element-web:
-#       container_name: element-web
-#       image: "element-web:x86"
-#       restart: unless-stopped
-#       networks:
-#         - monitor-net
-#       labels:
-#         - "traefik.enable=true"
-#         - "traefik.http.routers.element-web.rule=Host(`element.pwn.dev`)"
-#         - "traefik.http.routers.element-web.entrypoints=websecure"
-#         - "traefik.http.routers.element-web.tls.certresolver=pwn-ca"
-#         - "traefik.http.services.element-web-service.loadbalancer.server.port=80"
+  imap:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}dovecot:${MAILU_VERSION:-1.8}
+    restart: always
+    env_file: .env
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/mail:/mail"
+      - "/data/containers_data/mailu/overrides/dovecot:/overrides:ro"
+    depends_on:
+      - front
 
-# #Samba
-#   samba:
-#     image: dperson/samba
-#     environment:
-#       TZ: 'Europe/Moscow'
-#     networks:
-#       - default
-#     ports:
-#       - "137:137/udp"
-#       - "138:138/udp"
-#       - "139:139/tcp"
-#       - "445:445/tcp"
-#     read_only: false
-#     tmpfs:
-#       - /tmp
-#     restart: unless-stopped
-#     stdin_open: true
-#     tty: true
-#     volumes:
-#       - /data/share:/mnt
-#         #- /mnt2:/mnt2:z
-#     command: '-s "Vault;/mnt;yes;no;no;pwnlxrd" -u "pwnlxrd;${nfs_pass}" -p'
+  smtp:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}postfix:${MAILU_VERSION:-1.8}
+    restart: always
+    env_file: .env
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/mailqueue:/queue"
+      - "/data/containers_data/mailu/overrides/postfix:/overrides:ro"
+    depends_on:
+      - front
 
-#wikijs
+  antispam:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}rspamd:${MAILU_VERSION:-1.8}
+    hostname: antispam
+    restart: always
+    env_file: .env
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/filter:/var/lib/rspamd"
+      - "/data/containers_data/mailu/dkim:/dkim:ro"
+      - "/data/containers_data/mailu/overrides/rspamd:/etc/rspamd/override.d:ro"
+    depends_on:
+      - front
 
-  # wikijs:
-  #   image: ghcr.io/linuxserver/wikijs
-  #   container_name: wikijs
-  #   environment:
-  #     - PUID=1000
-  #     - PGID=1000
-  #     - TZ=Europe/Moscow
-  #   networks:
-  #     - monitor-net
-  #   volumes:
-  #     - /data/containers_data/wikijs/config:/config
-  #     - /data/containers_data/wikijs/data:/data
-  #   restart: unless-stopped
-  #   labels:
-  #     - "traefik.enable=true"
-  #     - "traefik.http.routers.wikijs.rule=Host(`todo.pwn.dev`)"
-  #     - "traefik.http.routers.wikijs.entrypoints=websecure"
-  #     - "traefik.http.routers.wikijs.tls.certresolver=pwn-ca"
-  #     - "traefik.http.services.wikijs-service.loadbalancer.server.port=3000"
+  # Optional services
+  antivirus:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}clamav:${MAILU_VERSION:-1.8}
+    restart: always
+    env_file: .env
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/filter:/data"
+
+
+  fetchmail:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}fetchmail:${MAILU_VERSION:-1.8}
+    restart: always
+    networks:
+      - monitor-net
+    env_file: .env
+
+  # Webmail
+  webmail:
+    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}roundcube:${MAILU_VERSION:-1.8}
+    restart: always
+    env_file: .env
+    networks:
+      - monitor-net
+    volumes:
+      - "/data/containers_data/mailu/webmail:/data"
+    depends_on:
+      - imap
+
+#drone ci
+  drone:
+    container_name: drone-server
+    image: drone/drone:2
+    restart: always
+    networks:
+      - monitor-net
+    volumes:
+      - /data/containers_data/drone:/data
+    environment:
+      - DRONE_GITEA_SERVER=https://git.pwndev.com
+      - DRONE_GITEA_CLIENT_ID=${DRONE_GITEA_CLIENT_ID}
+      - DRONE_GITEA_CLIENT_SECRET=${DRONE_GITEA_CLIENT_SECRET}
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}
+      - DRONE_SERVER_HOST=drone-server
+      - DRONE_SERVER_PROTO=http
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.drone.rule=Host(`drone.pwn.dev`)"
+      - "traefik.http.routers.drone.entrypoints=websecure"
+      - "traefik.http.routers.drone.tls.certresolver=pwn-ca"
+      - "traefik.http.services.drone-service.loadbalancer.server.port=80"
+
+  drone-runner1:
+    container_name: drone-runner-main
+    image: drone/drone:1
+    restart: always
+    networks:
+      - monitor-net
+    volumes:
+      - /data/share/projects:/data-project
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DRONE_RPC_PROTO=http
+      - DRONE_RPC_HOST=drone-server
+      - DRONE_RPC_SECRET=${DRONE_RPC_SECRET}
+      - DRONE_RUNNER_CAPACITY=2
+      - DRONE_RUNNER_NAME=main-runner
+      - DRONE_GITEA_SERVER=https://git.pwndev.com
+      - DRONE_GITEA_CLIENT_ID=${DRONE_GITEA_CLIENT_ID}
+      - DRONE_GITEA_CLIENT_SECRET=${DRONE_GITEA_CLIENT_SECRET}
