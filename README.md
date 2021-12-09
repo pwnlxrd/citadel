@@ -1,4 +1,4 @@
-![Profile views](https://gpvc.arturio.dev/pwnlxrd)  ![Version](https://img.shields.io/badge/version-1.0-brightgreen)  ![Lines of code](https://img.shields.io/tokei/lines/github/pwnlxrd/citadel)
+![Profile views](https://gpvc.arturio.dev/pwnlxrd)  ![Version](https://img.shields.io/badge/version-1.0-brightgreen)  ![Lines of code](https://img.shields.io/tokei/lines/github/pwnlxrd/citadel)  [![Build Status](https://drone.pwndev.com/api/badges/pwnlxrd/Citadel/status.svg)](https://drone.pwndev.com/pwnlxrd/Citadel)
 
 Citadel - local infrastructure in one docker-compose
 ===
