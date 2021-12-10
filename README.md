@@ -4,10 +4,8 @@ Citadel - local infrastructure in one docker-compose
 ===
 * step-ca  
    local CA
-
 * traefik  
    load-balance
-
 * prometheus  
   Monitoring system & time series database
 * blackbox  
@@ -36,3 +34,7 @@ Citadel - local infrastructure in one docker-compose
    rewrites web pages to exclude malicious HTML tags and attributes
 * dev-server-main  
    vs code container from isolated development
+* drone-server
+   drone ci/cd server
+* drone-runner
+   drone ci/cd runner
