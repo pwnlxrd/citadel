@@ -1,10 +1,10 @@
 version: '3.6'
 
 networks:
-  monitor-net:
+  virtual-network:
     driver: bridge
-  gitea:
-    external: false
+  # gitea:
+  #   external: false
 
 # volumes:
 #     prometheus_data: {}
@@ -21,7 +21,7 @@ services:
     volumes:
       - /data/containers_data/step-ca:/home/step
     networks:
-      - monitor-net
+      - virtual-network
     ports:
       - "9000:9000"
     dns:
@@ -31,13 +31,14 @@ services:
   traefik:
     image: "traefik:latest"
     container_name: "traefik"
+    restart: unless-stopped
     environment:
       LEGO_CA_CERTIFICATES: "/usr/local/share/ca-certificates/pwn-ca-bundle.pem"
     ports:
       - "80:80"
       - "443:443"
     networks:
-      - monitor-net
+      - virtual-network
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/usr/local/share/ca-certificates/pwn-ca-bundle.pem:/usr/local/share/ca-certificates/pwn-ca-bundle.pem:ro"
@@ -75,7 +76,7 @@ services:
     ports:
       - 9090:9090
     networks:
-      - monitor-net
+      - virtual-network
     labels:
       org.label-schema.group: "monitoring"
 
@@ -85,7 +86,7 @@ services:
     #ports:
     # - 9115:9115
     networks:
-      - monitor-net
+      - virtual-network
     volumes:
       - /data/containers_data/prometheus/etc/blackbox:/etc/blackboxexporter
     command:
@@ -107,7 +108,7 @@ services:
     ports:
       - 9093:9093
     networks:
-      - monitor-net
+      - virtual-network
     labels:
       org.label-schema.group: "monitoring"
 
@@ -127,7 +128,7 @@ services:
     ports:
       - 9100:9100
     networks:
-      - monitor-net
+      - virtual-network
     labels:
       org.label-schema.group: "monitoring"
 
@@ -144,7 +145,7 @@ services:
     ports:
       - 8080:8080
     networks:
-      - monitor-net
+      - virtual-network
     labels:
       org.label-schema.group: "monitoring"
 
@@ -165,7 +166,7 @@ services:
     # ports:
     #   - 3011:3000
     networks:
-      - monitor-net
+      - virtual-network
     # labels:
     #   org.label-schema.group: "monitoring"
     labels:
@@ -182,7 +183,7 @@ services:
     ports:
       - 9091:9091
     networks:
-      - monitor-net
+      - virtual-network
     labels:
       org.label-schema.group: "monitoring"
 
@@ -197,7 +198,7 @@ services:
       - POSTGRES_PASSWORD=${gitea_db_pass}
       - POSTGRES_DB=gitea-db
     networks:
-      - monitor-net
+      - virtual-network
     volumes:
       - /data/containers_data/gitea/gitea_data_db:/var/lib/postgresql/data
 
@@ -215,7 +216,7 @@ services:
       - DB_PASSWD=${gitea_db_pass}
     restart: unless-stopped
     networks:
-      - monitor-net
+      - virtual-network
     volumes:
       - /data/containers_data/gitea/gitea_data:/data/gitea
       - /data/containers_data/gitea/gitea_repo:/data/git
@@ -243,7 +244,7 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /data/containers_data/heimdall/config:/config
     networks:
-      - monitor-net
+      - virtual-network
     environment:
       - PGID=1000
       - PUID=1000
@@ -264,7 +265,7 @@ services:
     #  - "127.0.0.1:4040:4040"
     #  - "127.0.0.1:4041:4041"
     networks:
-      - monitor-net
+      - virtual-network
     command: -listen 0.0.0.0:4040 -api 0.0.0.0:4041 -target searx:8080
     volumes:
       - /data/containers_data/searx/rules.json:/etc/filtron/rules.json:rw
@@ -277,7 +278,7 @@ services:
     image: searx/searx:latest
     restart: always
     networks:
-      - monitor-net
+      - virtual-network
     command: -f
     volumes:
       - /data/containers_data/searx/configs:/etc/searx:rw
@@ -307,7 +308,7 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     networks:
-      - monitor-net
+      - virtual-network
     command: -timeout 6 -ipv6
     environment:
       - MORTY_KEY=${morty_key_secret}
@@ -318,148 +319,51 @@ services:
     cap_drop:
       - ALL
 
-#main dev-server
+# #main dev-server
 
-  dev-server-main:
-    container_name: dev-server-main
-    image: dev-server:x86
-    network_mode: bridge
-    volumes:
-      - "/home/pwnlxrd/.ssh/authorized_keys:/home/user/.ssh/authorized_keys:ro"
-      - /data/share:/data
-    ports:
-      - "7001:22"
-      - "8000:8000"
-    restart: unless-stopped
+#   dev-server-main:
+#     container_name: dev-server-main
+#     image: dev-server:x86
+#     network_mode: bridge
+#     volumes:
+#       - "/home/pwnlxrd/.ssh/authorized_keys:/home/user/.ssh/authorized_keys:ro"
+#       - /data/share:/data
+#     ports:
+#       - "7001:22"
+#       - "8000:8000"
+#     restart: unless-stopped
 
-#mail service
-  # External dependencies
-  redis-mail:
-    image: redis:alpine
-    restart: always
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/redis:/data"
-    
-  # Core services
-  front:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}nginx:${MAILU_VERSION:-1.8}
-    restart: always
-    env_file: .env
-    logging:
-      driver: json-file
-    ports:
-      - "127.0.0.1:80:80"
-      - "::1:80:80"
-      - "127.0.0.1:443:443"
-      - "::1:443:443"
-      - "127.0.0.1:25:25"
-      - "::1:25:25"
-      - "127.0.0.1:465:465"
-      - "::1:465:465"
-      - "127.0.0.1:587:587"
-      - "::1:587:587"
-      - "127.0.0.1:110:110"
-      - "::1:110:110"
-      - "127.0.0.1:995:995"
-      - "::1:995:995"
-      - "127.0.0.1:143:143"
-      - "::1:143:143"
-      - "127.0.0.1:993:993"
-      - "::1:993:993"
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/certs:/certs"
-      - "/data/containers_data/mailu/overrides/nginx:/overrides:ro"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.gitea.rule=Host(`mail.pwn.dev`)"
-      - "traefik.http.routers.gitea.entrypoints=websecure"
-      - "traefik.http.routers.gitea.tls.certresolver=pwn-ca"
-      - "traefik.http.services.gitea-service.loadbalancer.server.port=443"
-
-
-  admin:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}admin:${MAILU_VERSION:-1.8}
-    restart: always
-    env_file: .env
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/data:/data"
-      - "/data/containers_data/mailu/dkim:/dkim"
-    depends_on:
-      - redis-mail
-
-  imap:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}dovecot:${MAILU_VERSION:-1.8}
-    restart: always
-    env_file: .env
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/mail:/mail"
-      - "/data/containers_data/mailu/overrides/dovecot:/overrides:ro"
-    depends_on:
-      - front
-
-  smtp:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}postfix:${MAILU_VERSION:-1.8}
-    restart: always
-    env_file: .env
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/mailqueue:/queue"
-      - "/data/containers_data/mailu/overrides/postfix:/overrides:ro"
-    depends_on:
-      - front
-
-  antispam:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}rspamd:${MAILU_VERSION:-1.8}
-    hostname: antispam
-    restart: always
-    env_file: .env
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/filter:/var/lib/rspamd"
-      - "/data/containers_data/mailu/dkim:/dkim:ro"
-      - "/data/containers_data/mailu/overrides/rspamd:/etc/rspamd/override.d:ro"
-    depends_on:
-      - front
-
-  # Optional services
-  antivirus:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}clamav:${MAILU_VERSION:-1.8}
-    restart: always
-    env_file: .env
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/filter:/data"
-
-
-  fetchmail:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}fetchmail:${MAILU_VERSION:-1.8}
-    restart: always
-    networks:
-      - monitor-net
-    env_file: .env
-
-  # Webmail
-  webmail:
-    image: ${DOCKER_ORG:-mailu}/${DOCKER_PREFIX:-}roundcube:${MAILU_VERSION:-1.8}
-    restart: always
-    env_file: .env
-    networks:
-      - monitor-net
-    volumes:
-      - "/data/containers_data/mailu/webmail:/data"
-    depends_on:
-      - imap
+# #mail service
+#   mailserver:
+#     image: docker.io/mailserver/docker-mailserver:latest
+#     container_name: mailserver
+#     # If the FQDN for your mail-server is only two labels (eg: example.com),
+#     # you can assign this entirely to `hostname` and remove `domainname`.
+#     hostname: mail
+#     domainname: pwndev.com
+#     env_file: .env
+#     # More information about the mail-server ports:
+#     # https://docker-mailserver.github.io/docker-mailserver/edge/config/security/understanding-the-ports/
+#     # To avoid conflicts with yaml base-60 float, DO NOT remove the quotation marks.
+#     networks:
+#       - virtual-network
+#     ports:
+#       - "25:25"    # SMTP  (explicit TLS => STARTTLS)
+#       - "143:143"  # IMAP4 (explicit TLS => STARTTLS)
+#       - "465:465"  # ESMTP (implicit TLS)
+#       - "587:587"  # ESMTP (explicit TLS => STARTTLS)
+#       - "993:993"  # IMAP4 (implicit TLS)
+#     volumes:
+#       - /data/containers_data/dms/mail-data/:/var/mail/
+#       - /data/containers_data/dms/mail-state/:/var/mail-state/
+#       - /data/containers_data/dms/mail-logs/:/var/log/mail/
+#       - /data/containers_data/dms/config/:/tmp/docker-mailserver/
+#       - /etc/localtime:/etc/localtime:ro
+#     restart: always
+#     stop_grace_period: 1m
+#     cap_add:
+#       - NET_ADMIN
+#       - SYS_PTRACE
 
 #drone ci
   drone:
@@ -467,7 +371,7 @@ services:
     image: drone/drone:latest
     restart: always
     networks:
-      - monitor-net
+      - virtual-network
     volumes:
       - /data/containers_data/drone:/data
     environment:
@@ -489,7 +393,7 @@ services:
     image: drone/agent:latest
     restart: always
     networks:
-      - monitor-net
+      - virtual-network
     volumes:
       - /data/share/projects:/data-project
       - /var/run/docker.sock:/var/run/docker.sock
@@ -501,3 +405,66 @@ services:
       - DRONE_RUNNER_NAME=main-docker-runner
     depends_on:
       - "drone"
+
+# Docker registry
+  registry:
+    container_name: registry-server
+    restart: always
+    image: registry:2
+    networks:
+      - virtual-network
+    environment:
+      REGISTRY_HTTP_ADDR: 0.0.0.0:443
+      REGISTRY_AUTH: htpasswd
+      REGISTRY_AUTH_HTPASSWD_PATH: /auth/htpasswd
+      REGISTRY_AUTH_HTPASSWD_REALM: Registry Realm
+    volumes:
+      - /data/containers_data/registry/data:/var/lib/registry
+      - /data/containers_data/registry/auth:/auth
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.registry.rule=Host(`registry.pwn.dev`)"
+      - "traefik.http.routers.registry.entrypoints=websecure"
+      - "traefik.http.routers.registry.tls.certresolver=pwn-ca"
+      - "traefik.http.services.registry-service.loadbalancer.server.port=443"
+
+#semaphore
+  mysql-semaphore:
+    networks:
+      - virtual-network
+    image: mysql:5.6
+    hostname: mysql-semaphore
+    volumes:
+      - /data/containers_data/semaphore/mysql/:/var/lib/mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      MYSQL_DATABASE: semaphore
+      MYSQL_USER: semaphore
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+  semaphore:
+    networks:
+      - virtual-network
+    image: ansiblesemaphore/semaphore:latest
+    environment:
+      SEMAPHORE_DB_USER: semaphore
+      SEMAPHORE_DB_PASS: ${MYSQL_PASSWORD}
+      SEMAPHORE_DB_HOST: mysql-semaphore
+      SEMAPHORE_DB_PORT: 3306
+      SEMAPHORE_DB: semaphore
+      SEMAPHORE_PLAYBOOK_PATH: /tmp/semaphore/
+      SEMAPHORE_ADMIN_PASSWORD: ${SEMAPHORE_ADMIN_PASSWORD}
+      SEMAPHORE_ADMIN_NAME: pwnlxrd
+      SEMAPHORE_ADMIN_EMAIL: admin@pwndev.com
+      SEMAPHORE_ADMIN: pwnlxrd
+    volumes:
+      - /data/containers_data/semaphore/data:/opt/data/semaphore
+      - /data/containers_data/semaphore/config/:/etc/semaphore/
+    depends_on:
+      - mysql-semaphore
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.semaphore.rule=Host(`ansible.pwn.dev`)"
+      - "traefik.http.routers.semaphore.entrypoints=websecure"
+      - "traefik.http.routers.semaphore.tls.certresolver=pwn-ca"
+      - "traefik.http.services.semaphore-service.loadbalancer.server.port=3000"

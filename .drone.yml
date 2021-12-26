@@ -8,10 +8,14 @@ platform:
   arch: amd64
 
 workspace:
-  path: /data/share/projects/git/ansible
+  path: /data/share/projects/git/Citadel
 
 steps:
 - name: mirroring to github
+  environment:
+    mirror: "git@github.com:pwnlxrd/citadel.git"
   commands:
-  - git push --mirror git@github.com:pwnlxrd/citadel.git
-  - echo "mirroring done 👌"
+  - git config --global user.email ebanyemail@gmail.com
+  - git push --mirror ${mirror}
+  - git config --global user.email admin@pwndev.com
+  - curl -s -X POST https://api.telegram.org/bot${token}/sendMessage -d chat_id=1810109806 -d text="mirroring ${mirror} done 🚀"
