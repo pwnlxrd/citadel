@@ -7,18 +7,17 @@ platform:
   os: linux
   arch: amd64
 
-environment:
-  mirror: "git@github.com:pwnlxrd/citadel.git"
-  TOKEN:
-    from_secret: token
-
 workspace:
   path: /data/share/projects/git/Citadel
 
 steps:
 - name: mirroring to github
+  environment:
+    mirror: "git@github.com:pwnlxrd/citadel.git"
+    TOKEN:
+      from_secret: token
   commands:
   - git config --global user.email ebanyemail@gmail.com
-  - git push --mirror ${mirror}
+  - git push --mirror $${mirror}
   - git config --global user.email admin@pwndev.com
-  - curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage -d chat_id=1810109806 -d text="mirroring ${mirror} done 🚀"
+  - curl -s -X POST https://api.telegram.org/bot$${TOKEN}/sendMessage -d chat_id=1810109806 -d text="mirroring ${mirror} done 🚀"
