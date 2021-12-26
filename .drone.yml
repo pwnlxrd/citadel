@@ -17,7 +17,5 @@ steps:
     TOKEN:
       from_secret: token
   commands:
-  - git config --global user.email ebanyemail@gmail.com
   - git push --mirror $${mirror}
-  - git config --global user.email admin@pwndev.com
-  - curl -s -X POST https://api.telegram.org/bot$${TOKEN}/sendMessage -d chat_id=1810109806 -d text="mirroring ${mirror} done 🚀"
+  - curl -s -X POST https://api.telegram.org/bot$${TOKEN}/sendMessage -d chat_id=-456374469 -d text="mirroring $${mirror} done 🚀"
