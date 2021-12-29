@@ -468,3 +468,24 @@ services:
       - "traefik.http.routers.semaphore.entrypoints=websecure"
       - "traefik.http.routers.semaphore.tls.certresolver=pwn-ca"
       - "traefik.http.services.semaphore-service.loadbalancer.server.port=3000"
+
+#jenkins
+  jenkins:
+    image: jenkins/jenkins:latest
+    privileged: true
+    user: root
+    networks:
+      - virtual-network
+    ports:
+      - 50000:50000
+    container_name: jenkins
+    volumes:
+      - /data/containers_data/jenkins:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/local/bin/docker:/usr/local/bin/docker
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jenkins.rule=Host(`jenkins.pwn.dev`)"
+      - "traefik.http.routers.jenkins.entrypoints=websecure"
+      - "traefik.http.routers.jenkins.tls.certresolver=pwn-ca"
+      - "traefik.http.services.jenkins-service.loadbalancer.server.port=8080"
