@@ -8,6 +8,7 @@ pipeline {
    stages {
       stage('sh') {
          steps {
+            echo 'test - ${PROJECT_NAME}:${BUILD_STATUS}'
             sh '/bin/true'
          }
       }  
