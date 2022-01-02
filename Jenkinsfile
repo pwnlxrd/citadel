@@ -10,7 +10,7 @@ pipeline {
    }
    post{
         always{
-            telegramSend(message:'${PROJECT_NAME}:${BUILD_STATUS}',chatId:-456374469)
+            telegramSend(message:'test',chatId:-456374469)
          }
       }
    }
