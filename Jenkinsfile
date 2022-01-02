@@ -4,11 +4,12 @@ pipeline {
    triggers { pollSCM('* * * * *') }
    environment {
         TGTOKEN = credentials('tg-token')
+        PROJECT_
         }
    stages {
       stage('sh') {
          steps {
-            echo 'test - ${PROJECT_NAME}:${BUILD_STATUS}'
+            echo 'test - $PROJECT_NAME:${BUILD_STATUS}'
             sh '/bin/true'
          }
       }  
