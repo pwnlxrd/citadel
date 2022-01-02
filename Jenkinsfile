@@ -5,10 +5,12 @@ pipeline {
    environment {
         TGTOKEN = credentials('tg-token')
         GITHUB_PROJECT = "pwnlxrd/citadel"
+        BRANCH = "master"
         }
    stages {
       stage('mirroring') {
          steps {
+            sh 'git checkout $BRANCH'
             sh 'git push --mirror git@github.com:$GITHUB_PROJECT.git'
          }
       }  
