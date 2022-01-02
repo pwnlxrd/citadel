@@ -1,16 +1,17 @@
 pipeline {
-    agent any
+   agent any
 
-    stages {
-        stage('Do nothing') {
-            steps {
-                sh '/bin/true'
-            }
-        }
-    }
-    post{
+   stages {
+      stage('sh') {
+         steps {
+            sh '/bin/true'
+         }
+      }  
+   }
+   post{
         always{
             telegramSend(message:'${PROJECT_NAME}:${BUILD_STATUS}',chatId:-456374469)
          }
-     }
+      }
+   }
 }
