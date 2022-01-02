@@ -1,6 +1,8 @@
 pipeline {
    agent any
 
+   triggers { pollSCM('* * * * *') }
+
    stages {
       stage('sh') {
          steps {
@@ -9,8 +11,11 @@ pipeline {
       }  
    }
    post{
+    environment {
+        TG-TOKEN = credentials('tg-token')
+        }
         always{
-            sh 'curl -s -X POST https://api.telegram.org/bot$tg-token/sendMessage -d chat_id=-456374469 -d text="${PROJECT_NAME}:${BUILD_STATUS} 🚀"'
+            sh 'curl -s -X POST https://api.telegram.org/bot$TG-TOKEN/sendMessage -d chat_id=-456374469 -d text="${PROJECT_NAME}:${BUILD_STATUS} 🚀"'
          }
       }
    }
