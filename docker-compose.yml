@@ -489,3 +489,19 @@ services:
       - "traefik.http.routers.jenkins.entrypoints=websecure"
       - "traefik.http.routers.jenkins.tls.certresolver=pwn-ca"
       - "traefik.http.services.jenkins-service.loadbalancer.server.port=8080"
+
+  shieldsio:
+    image: shieldsio/shields:next
+    networks:
+      - virtual-network
+    container_name: shieldsio
+    volumes:
+      - /data/containers_data/shields/production.yml:/usr/src/app/config/production.yml:ro
+    #   - /var/run/docker.sock:/var/run/docker.sock
+    #   - /usr/local/bin/docker:/usr/local/bin/docker
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.shields.rule=Host(`shields.pwn.dev`)"
+      - "traefik.http.routers.shields.entrypoints=websecure"
+      - "traefik.http.routers.shields.tls.certresolver=pwn-ca"
+      - "traefik.http.services.shields-service.loadbalancer.server.port=80"
