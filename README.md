@@ -1,5 +1,6 @@
-![Version](https://img.shields.io/badge/version-1.6-brightgreen)  ![Lines of code](https://img.shields.io/tokei/lines/github/pwnlxrd/citadel)  [![Build Status](https://drone.pwndev.com/api/badges/pwnlxrd/Citadel/status.svg)](https://drone.pwndev.com/pwnlxrd/Citadel) [![Made with](https://shields.pwndev.com/badge/made%20with-docker-brightgreen)](https://drone.pwndev.com/pwnlxrd/Citadel)
-
+![Version](https://img.shields.io/badge/version-1.6-brightgreen)  ![Lines of code](https://img.shields.io/tokei/lines/github/pwnlxrd/citadel)  [![Made with](https://shields.pwndev.com/badge/made%20with-docker-brightgreen)](https://drone.pwndev.com/pwnlxrd/Citadel)
+  
+<!-- [![Build Status](https://drone.pwndev.com/api/badges/pwnlxrd/Citadel/status.svg)](https://drone.pwndev.com/pwnlxrd/Citadel) -->
 Citadel - local infrastructure in one docker-compose
 ===
 * step-ca  
