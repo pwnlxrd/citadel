@@ -1,8 +1,11 @@
 ![Version](https://img.shields.io/badge/version-1.6-brightgreen)  ![Lines of code](https://img.shields.io/tokei/lines/github/pwnlxrd/citadel)  [![Made with](https://shields.pwndev.com/badge/made%20with-docker-brightgreen)](https://drone.pwndev.com/pwnlxrd/Citadel)
   
 <!-- [![Build Status](https://drone.pwndev.com/api/badges/pwnlxrd/Citadel/status.svg)](https://drone.pwndev.com/pwnlxrd/Citadel) -->
-Citadel - local infrastructure in one docker-compose
+Citadel - local infrastructure in one docker-compose  
 ===
+  
+![avatar](https://kartinkin.net/uploads/posts/2021-07/1626828759_17-kartinkin-com-p-tyomnaya-bashnya-anime-anime-krasivo-18.jpg)
+  
 * step-ca  
     > local CA
 * traefik  
@@ -43,3 +46,9 @@ Citadel - local infrastructure in one docker-compose
     > Ansible UI server    
 * jenkins  
     > CI/CD server    
+  
+
+## 📝 License
+
+Copyright © 2021 [pwnlxrd &lt;pwnlxrd@pwndev.com&gt;](https://github.com/pwnlxrd).<br />
+This project is [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) licensed.
