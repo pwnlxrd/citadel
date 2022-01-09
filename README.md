@@ -46,6 +46,8 @@ Citadel - local infrastructure in one docker-compose
     > Ansible UI server    
 * jenkins  
     > CI/CD server    
+* vikunja  
+    > todo server  
   
 
 ## 📝 License
