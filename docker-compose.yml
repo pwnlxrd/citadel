@@ -514,6 +514,7 @@ services:
     networks:
       - virtual-network
     environment:
+      VIKUNJA_SERVICE_TIMEZONE: Europe/Moscow
       VIKUNJA_DATABASE_HOST: db-vikunja
       VIKUNJA_DATABASE_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
       VIKUNJA_DATABASE_TYPE: mysql
@@ -538,7 +539,6 @@ services:
     networks:
       - virtual-network
     environment:
-      VIKUNJA_SERVICE_TIMEZONE: Europe/Moscow
       MYSQL_ROOT_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
       MYSQL_USER: vikunja
       MYSQL_PASSWORD: ${VIKUNJA_DATABASE_PASSWORD}
