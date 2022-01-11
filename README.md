@@ -46,7 +46,7 @@ Citadel - local infrastructure in one docker-compose
     > Ansible UI server    
 * jenkins  
     > CI/CD server    
-* vikunja  
+* vikunja [DEPRICATED]  
     > todo server  
   
 
