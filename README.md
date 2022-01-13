@@ -47,7 +47,9 @@ Citadel - local infrastructure in one docker-compose
 * jenkins  
     > CI/CD server    
 * vikunja [DEPRICATED]  
-    > todo server  
+    > todo server 
+* shieldsio
+    > image server from markdown
   
 
 ## 📝 License
