@@ -38,10 +38,6 @@ Citadel - local infrastructure in one docker-compose
     > rewrites web pages to exclude malicious HTML tags and attributes
 * dev-server-main  
     > vs code container from isolated development
-* drone-server [DEPRICATED]  
-    > drone ci/cd server
-* drone-runner [DEPRICATED]  
-    > drone ci/cd runner
 * semaphore    
     > Ansible UI server    
 * jenkins  
